@@ -9,7 +9,7 @@
 #
 # Project home: https://github.com/caseycarter/cmcstl2
 #
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.0)
 
 project(containers CXX)
 
