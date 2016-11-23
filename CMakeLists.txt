@@ -17,7 +17,17 @@ enable_testing()
 include(CTest)
 
 include_directories(include)
-include_directories(../cmcstl2/include)
+
+if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/cmcstl2/include)
+  find_package(Git)
+  if(GIT_FOUND)
+    execute_process(COMMAND "${GIT_EXECUTABLE}" submodule update --init WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+  else()
+    message(STATUS "OH NO!")
+  endif()
+endif()
+
+include_directories(cmcstl2/include)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1z -fconcepts -ftemplate-backtrace-limit=0")

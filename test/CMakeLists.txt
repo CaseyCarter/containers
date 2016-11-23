@@ -19,4 +19,5 @@ add_executable(vector vector.cpp)
 add_test(test.vector vector)
 
 add_executable(allocator allocator.cpp)
+target_compile_definitions(allocator PRIVATE -D_ISOC11_SOURCE)
 add_test(test.allocator allocator)

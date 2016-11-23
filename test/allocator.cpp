@@ -46,6 +46,7 @@ public:
     throw std::bad_alloc{};
   }
 
+#if 0 // Travis doesn't like ::aligned_alloc
   template <class U = T>
   requires
     ranges::Same<U, T>() &&
@@ -63,6 +64,7 @@ public:
     }
     throw std::bad_alloc{};
   }
+#endif
 };
 
 template <>
