@@ -66,8 +66,8 @@ STL2_OPEN_NAMESPACE {
         return __stl2::pointer_to<pointer>(static_cast<node&>(*p));
       }
 
-      T& get() noexcept { return reinterpret_cast<T&>(storage_); }
-      const T& get() const noexcept { return reinterpret_cast<const T&>(storage_); }
+      T& get() & noexcept { return reinterpret_cast<T&>(storage_); }
+      const T& get() const& noexcept { return reinterpret_cast<const T&>(storage_); }
 
       pointer next() const noexcept {
         if (auto lnext = link_t::next()) {
@@ -83,7 +83,7 @@ STL2_OPEN_NAMESPACE {
       }
 
     private:
-      aligned_storage<sizeof(T), alignof(T)> storage_;
+      aligned_storage_t<sizeof(T), alignof(T)> storage_;
     };
 
     template <class T, PointerTo<void> VoidPointer>
