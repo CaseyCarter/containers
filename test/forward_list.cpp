@@ -13,6 +13,7 @@
 #include <stl2/algorithm.hpp>
 #include <stl2/view/repeat_n.hpp>
 #include <iostream>
+#include "../cmcstl2/test/simple_test.hpp"
 
 namespace ranges = std::experimental::ranges;
 
@@ -22,8 +23,8 @@ void dump(const ranges::ext::StreamInsertable& t) {
 
 void dump(ranges::Range&& r) {
 	std::cout << '{';
-	auto end = ranges::end(r);
 	auto pos = ranges::begin(r);
+	auto end = ranges::end(r);
 	if (pos != end) {
 		dump(*pos);
 		while (++pos != end) {
@@ -63,8 +64,7 @@ int main() {
 		for (auto i = 4; i-- != 0;) {
 			list.push_front(i);
 		}
-		dump(list);
-		std::cout << '\n';
+		::check_equal(list, {0, 1, 2, 3});
 	}
 
 	{
@@ -83,20 +83,22 @@ int main() {
 
 	{
 		ranges::forward_list<int> list{ranges::repeat_n_view<int>{42, 4}};
-		assert(ranges::distance(list) == 4);
-		assert(ranges::equal(list, ranges::repeat_n_view<int>{42, 4}));
+		CHECK(ranges::distance(list) == 4);
+		CHECK(ranges::equal(list, ranges::repeat_n_view<int>{42, 4}));
 	}
 	{
 		ranges::forward_list<S> list{ranges::repeat_n_view<S>{{}, 8}};
-		assert(ranges::distance(list) == 8);
+		CHECK(ranges::distance(list) == 8);
 	}
 	{
 		int some_ints[] = {4, 5, 6, 7, 3, 2, 1, 0};
 		ranges::forward_list<int> list{some_ints};
-		assert(ranges::equal(list, some_ints));
+		CHECK(ranges::equal(list, some_ints));
 		ranges::sort(list);
-		assert(ranges::is_sorted(list));
+		CHECK(ranges::is_sorted(list));
 	}
 
 	incomplete::test();
+
+	return ::test_result();
 }

@@ -11,7 +11,9 @@
 //
 #include <stl2/algorithm.hpp>
 #include <stl2/vector.hpp>
+#include <stl2/view/repeat_n.hpp>
 #include <iostream>
+#include "../cmcstl2/test/simple_test.hpp"
 
 namespace ranges = std::experimental::ranges;
 
@@ -90,13 +92,14 @@ int main() {
 		for (auto i = 1; i < 32; ++i) {
 			vec.push_back(vec.back());
 		}
-		ranges::copy(vec, ranges::ostream_iterator<>{std::cout, " "});
-		std::cout << '\n';
+		CHECK(ranges::equal(vec, ranges::repeat_n_view<int>{42, 32}));
 		for (auto i = 0; i < 16; ++i) {
 			vec.pop_back();
 		}
-		ranges::copy(vec, ranges::ostream_iterator<>{std::cout, " "});
-		std::cout << '\n';
+		CHECK(ranges::equal(vec, ranges::repeat_n_view<int>{42, 16}));
 	}
+
 	incomplete::test();
+
+	return ::test_result();
 }
