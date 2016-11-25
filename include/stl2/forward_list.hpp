@@ -60,7 +60,7 @@ STL2_OPEN_NAMESPACE {
 			: pos_{nullptr} {}
 			template <class U>
 			requires
-				!std::is_const<T>::value &&
+				std::is_const<T>::value &&
 				Same<U, remove_const_t<T>>()
 			constexpr cursor(const cursor<U, VoidPointer>& that) noexcept
 			: pos_{that.pos_} {}
@@ -93,26 +93,29 @@ STL2_OPEN_NAMESPACE {
 		protected:
 			rebind_pointer_t<VoidPointer, node<T, VoidPointer>> head_ = nullptr;
 
+			using cursor = __fl::cursor<T, VoidPointer>;
+			using const_cursor = __fl::cursor<const T, VoidPointer>;
+
 		public:
 			using value_type = T;
-			using iterator = __stl2::basic_iterator<cursor<T, VoidPointer>>;
-			using const_iterator = __stl2::basic_iterator<cursor<const T, VoidPointer>>;
+			using iterator = __stl2::basic_iterator<cursor>;
+			using const_iterator = __stl2::basic_iterator<const_cursor>;
 
 			iterator before_begin() noexcept {
-				return cursor<T, VoidPointer>{std::addressof(head_)};
+				return cursor{std::addressof(head_)};
 			}
 			const_iterator before_begin() const noexcept {
-				return cursor<const T, VoidPointer>{std::addressof(head_)};
+				return const_cursor{std::addressof(head_)};
 			}
 			const_iterator cbefore_begin() const noexcept {
 				return before_begin();
 			}
 
 			iterator begin() noexcept {
-				return cursor<T, VoidPointer>{head_ ? std::addressof(head_->next_): nullptr};
+				return cursor{head_ ? std::addressof(head_->next_): nullptr};
 			}
 			const_iterator begin() const noexcept {
-				return cursor<const T, VoidPointer>{head_ ? std::addressof(head_->next_) : nullptr};
+				return const_cursor{head_ ? std::addressof(head_->next_) : nullptr};
 			}
 			const_iterator cbegin() const noexcept {
 				return begin();
@@ -144,6 +147,8 @@ STL2_OPEN_NAMESPACE {
 		, detail::ebo_box<A>
 	{
 		using base_t = __fl::base<T, proto_allocator_pointer_t<A>>;
+		using typename base_t::cursor;
+		using typename base_t::const_cursor;
 		using base_t::head_;
 
 		using node_t = __fl::node<T, proto_allocator_pointer_t<A>>;
@@ -165,9 +170,12 @@ STL2_OPEN_NAMESPACE {
 		}
 
 		forward_list()
-		requires DefaultConstructible<A>() = default;
+		requires
+			DefaultConstructible<A>() &&
+			AllocatorDestructible<node_allocator_type, T>() = default;
 
-		forward_list(allocator_type a) noexcept
+		constexpr explicit forward_list(allocator_type a) noexcept
+		requires AllocatorDestructible<node_allocator_type, T>()
 		: detail::ebo_box<A>(__stl2::move(a)) {}
 
 		// FIXME: NYI
@@ -175,6 +183,44 @@ STL2_OPEN_NAMESPACE {
 		forward_list(const forward_list&) = delete;
 		forward_list& operator=(forward_list&&) & = delete;
 		forward_list& operator=(const forward_list&) & = delete;
+
+		template <InputIterator I, Sentinel<I> S>
+		requires
+			Allocator<node_allocator_type, node_t>() &&
+			AllocatorConstructible<node_allocator_type, T, reference_t<I>>()
+		forward_list(I first, S last, allocator_type a)
+		: forward_list{std::move(a)}
+		{
+			insert_after(before_begin(), std::move(first), std::move(last));
+		}
+		template <InputIterator I, Sentinel<I> S>
+		requires
+			DefaultConstructible<A>() &&
+			Allocator<node_allocator_type, node_t>() &&
+			AllocatorConstructible<node_allocator_type, T, reference_t<I>>()
+		forward_list(I first, S last)
+		: forward_list{}
+		{
+			insert_after(before_begin(), std::move(first), std::move(last));
+		}
+		template <InputRange R>
+		requires
+			AllocatorConstructible<node_allocator_type, T, reference_t<iterator_t<R>>>()
+		forward_list(R&& rng, allocator_type a)
+		: forward_list{ranges::begin(rng), ranges::end(rng), std::move(a)}
+		{}
+		template <InputRange R>
+		requires
+			DefaultConstructible<allocator_type>() &&
+			Allocator<node_allocator_type, node_t>() &&
+			AllocatorConstructible<node_allocator_type, T, reference_t<iterator_t<R>>>()
+		explicit forward_list(R&& rng)
+		: forward_list{ranges::begin(rng), ranges::end(rng)}
+		{}
+
+		using typename base_t::iterator;
+		using typename base_t::const_iterator;
+		using base_t::before_begin;
 
 		// FIXME: NYI
 		void swap(forward_list& that);
@@ -191,7 +237,7 @@ STL2_OPEN_NAMESPACE {
 		requires
 			Allocator<node_allocator_type, node_t>() &&
 			AllocatorConstructible<node_allocator_type, T, Args...>()
-		void emplace_front(Args&&...args) {
+		iterator emplace_after(const_iterator where, Args&&...args) {
 			auto alloc = node_allocator_type{detail::ebo_box<A>::get()};
 			Same<node_pointer> new_node = traits::allocate(alloc, 1);
 			try {
@@ -201,8 +247,16 @@ STL2_OPEN_NAMESPACE {
 				traits::deallocate(alloc, new_node, 1);
 				throw;
 			}
-			new_node->next_ = head_;
-			head_ = new_node;
+			new_node->next_ = *where.pos_;
+			*where.pos_ = new_node;
+			return cursor{std::addressof(new_node->next_)};
+		}
+		template <class...Args>
+		requires
+			Allocator<node_allocator_type, node_t>() &&
+			AllocatorConstructible<node_allocator_type, T, Args...>()
+		T& emplace_front(Args&&...args) {
+			return *emplace_after(before_begin(), std::forward<Args>(args)...);
 		}
 
 		void push_front(const T& t)
@@ -231,6 +285,19 @@ STL2_OPEN_NAMESPACE {
 			head_ = head_->next_;
 			traits::destroy(alloc, std::addressof(tmp->get()));
 			traits::deallocate(alloc, tmp, 1);
+		}
+
+		template<InputIterator I, Sentinel<I> S>
+		requires
+			Allocator<node_allocator_type, node_t>() &&
+			AllocatorConstructible<node_allocator_type, T, reference_t<I>>()
+		iterator insert_after(const_iterator where, I first, S const last)
+		{
+			iterator pos{cursor{where.pos_}};
+			for (; first != last; ++first) {
+				pos = emplace_after(pos, *first);
+			}
+			return pos;
 		}
 	};
 } STL2_CLOSE_NAMESPACE

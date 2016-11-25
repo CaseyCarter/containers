@@ -10,6 +10,8 @@
 // Project home: https://github.com/caseycarter/cmcstl2
 //
 #include <stl2/forward_list.hpp>
+#include <stl2/algorithm.hpp>
+#include <stl2/view/repeat_n.hpp>
 #include <iostream>
 
 namespace ranges = std::experimental::ranges;
@@ -41,7 +43,14 @@ namespace incomplete {
 	}
 }
 
+struct S {};
+
 int main() {
+	{
+		ranges::forward_list<int>{};
+		ranges::forward_list<S>{};
+	}
+
 	{
 		using L = ranges::forward_list<int>;
 		using I = decltype(ranges::declval<L&>().begin());
@@ -50,7 +59,7 @@ int main() {
 		static_assert(ranges::models::Sentinel<S, I>);
 		static_assert(ranges::models::ForwardRange<L>);
 
-		L list;
+		L list{};
 		for (auto i = 4; i-- != 0;) {
 			list.push_front(i);
 		}
@@ -70,6 +79,23 @@ int main() {
 		}
 		dump(ll);
 		std::cout << '\n';
+	}
+
+	{
+		ranges::forward_list<int> list{ranges::repeat_n_view<int>{42, 4}};
+		assert(ranges::distance(list) == 4);
+		assert(ranges::equal(list, ranges::repeat_n_view<int>{42, 4}));
+	}
+	{
+		ranges::forward_list<S> list{ranges::repeat_n_view<S>{{}, 8}};
+		assert(ranges::distance(list) == 8);
+	}
+	{
+		int some_ints[] = {4, 5, 6, 7, 3, 2, 1, 0};
+		ranges::forward_list<int> list{some_ints};
+		assert(ranges::equal(list, some_ints));
+		ranges::sort(list);
+		assert(ranges::is_sorted(list));
 	}
 
 	incomplete::test();
