@@ -178,11 +178,18 @@ STL2_OPEN_NAMESPACE {
 		requires AllocatorDestructible<node_allocator_type, T>()
 		: detail::ebo_box<A>(__stl2::move(a)) {}
 
+		forward_list(const forward_list& that)
+		requires
+			Allocator<node_allocator_type, node_t>() &&
+			AllocatorCopyConstructible<node_allocator_type, T>()
+		: forward_list{std::allocator_traits<A>::select_on_container_copy_construction(
+			that.detail::ebo_box<A>::get())}
+		{
+			insert_after(before_begin(), that);
+		}
+
 		// FIXME: NYI
 		forward_list(forward_list&&) = delete;
-		forward_list(const forward_list&) = delete;
-		forward_list& operator=(forward_list&&) & = delete;
-		forward_list& operator=(const forward_list&) & = delete;
 
 		template <InputIterator I, Sentinel<I> S>
 		requires
@@ -217,6 +224,9 @@ STL2_OPEN_NAMESPACE {
 		explicit forward_list(R&& rng)
 		: forward_list{ranges::begin(rng), ranges::end(rng)}
 		{}
+
+		forward_list& operator=(forward_list&&) & = delete;
+		forward_list& operator=(const forward_list&) & = delete;
 
 		using typename base_t::iterator;
 		using typename base_t::const_iterator;
@@ -298,6 +308,14 @@ STL2_OPEN_NAMESPACE {
 				pos = emplace_after(pos, *first);
 			}
 			return pos;
+		}
+		template<InputRange Rng>
+		requires
+			Allocator<node_allocator_type, node_t>() &&
+			AllocatorConstructible<node_allocator_type, T, reference_t<iterator_t<Rng>>>()
+		iterator insert_after(const_iterator where, Rng&& rng)
+		{
+			return insert_after(std::move(where), ranges::begin(rng), ranges::end(rng));
 		}
 	};
 } STL2_CLOSE_NAMESPACE

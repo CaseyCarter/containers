@@ -11,7 +11,9 @@
 //
 #include <stl2/forward_list.hpp>
 #include <stl2/algorithm.hpp>
+#include <stl2/view/iota.hpp>
 #include <stl2/view/repeat_n.hpp>
+#include <stl2/view/take_exactly.hpp>
 #include <iostream>
 #include "../cmcstl2/test/simple_test.hpp"
 
@@ -96,6 +98,20 @@ int main() {
 		CHECK(ranges::equal(list, some_ints));
 		ranges::sort(list);
 		CHECK(ranges::is_sorted(list));
+	}
+
+	{
+		ranges::forward_list<int> list{ranges::take_exactly_view<ranges::iota_view<int>>{{}, 8}};
+		CHECK(ranges::distance(list) == 8);
+		CHECK(ranges::is_sorted(list));
+		auto l2 = list;
+		CHECK(ranges::equal(list, l2));
+	}
+	{
+		ranges::forward_list<S> list{ranges::repeat_n_view<S>{{}, 8}};
+		CHECK(ranges::distance(list) == 8);
+		auto l2 = list;
+		CHECK(ranges::distance(l2) == 8);
 	}
 
 	incomplete::test();
