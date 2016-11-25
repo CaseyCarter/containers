@@ -48,13 +48,13 @@ STL2_OPEN_NAMESPACE {
 			requires DefaultConstructible<allocator_type>() = default;
 
 		vector(allocator_type a) noexcept
-		: base_t{__stl2::move(a)}
+		: base_t{std::move(a)}
 		{}
 
 		// Extension
 		vector(reserve_t, size_type n, allocator_type a)
 			requires Allocator<allocator_type, T>()
-		: base_t{__stl2::move(a)},
+		: base_t{std::move(a)},
 			begin_{traits::allocate(alloc(), (STL2_EXPECT(n >= 0), n))},
 			end_{begin_}, alloc_{begin_ + n}
 		{}
@@ -67,7 +67,7 @@ STL2_OPEN_NAMESPACE {
 
 		vector(size_type n, allocator_type a)
 			requires AllocatorDefaultConstructible<allocator_type, T>()
-		: vector{reserve_t{}, n, __stl2::move(a)}
+		: vector{reserve_t{}, n, std::move(a)}
 		{
 			while (n-- > 0) {
 				emplace_back_unchecked();
@@ -84,7 +84,7 @@ STL2_OPEN_NAMESPACE {
 		vector(size_type n, const T& t, allocator_type a)
 			requires Allocator<allocator_type, T>() &&
 				AllocatorCopyConstructible<allocator_type, T>()
-		: vector{reserve_t{}, n, __stl2::move(a)}
+		: vector{reserve_t{}, n, std::move(a)}
 		{
 			while (n-- > 0) {
 				emplace_back_unchecked(t);
@@ -241,7 +241,7 @@ STL2_OPEN_NAMESPACE {
 			requires
 				AllocatorMoveConstructible<allocator_type, T>()
 			{
-				vec_->emplace_back_unchecked(__stl2::move(t));
+				vec_->emplace_back_unchecked(std::move(t));
 				return *this;
 			}
 		};
@@ -275,7 +275,7 @@ STL2_OPEN_NAMESPACE {
 			Allocator<allocator_type, T>() &&
 			AllocatorMoveConstructible<allocator_type, T>()
 		{
-			emplace_back(__stl2::move(t));
+			emplace_back(std::move(t));
 		}
 
 		void pop_back() noexcept
@@ -334,9 +334,9 @@ STL2_OPEN_NAMESPACE {
 
 			tmp_buf(tmp_buf&& that) noexcept
 			: a_{that.a_},
-				begin_{__stl2::exchange(__stl2::move(that.begin_), nullptr)},
-				end_{__stl2::move(that.end_)},
-				alloc_{__stl2::move(that.alloc_)} {}
+				begin_{__stl2::exchange(std::move(that.begin_), nullptr)},
+				end_{std::move(that.end_)},
+				alloc_{std::move(that.alloc_)} {}
 
 			tmp_buf& operator=(tmp_buf&&) & = delete;
 
@@ -348,7 +348,7 @@ STL2_OPEN_NAMESPACE {
 				AllocatorMoveConstructible<allocator_type, T>()
 			{
 				STL2_EXPECT(end_ < alloc_);
-				traits::construct(a_, std::addressof(*end_), __stl2::move(t));
+				traits::construct(a_, std::addressof(*end_), std::move(t));
 				++end_;
 			}
 		};
