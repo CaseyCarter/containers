@@ -22,13 +22,12 @@
 
 STL2_OPEN_NAMESPACE {
   namespace __fl {
-    template <PointerTo<void> VoidPointer>
-    class link {
-      using pointer = rebind_pointer_t<VoidPointer, link>;
+    template <class T, PointerTo<void> VoidPointer>
+    struct node {
+      using pointer = rebind_pointer_t<VoidPointer, node>;
 
-      explicit operator bool() const noexcept {
-        return next_ != nullptr;
-      }
+      T& get() & noexcept { return reinterpret_cast<T&>(storage_); }
+      const T& get() const& noexcept { return reinterpret_cast<const T&>(storage_); }
 
       pointer next() const noexcept {
         return next_;
@@ -45,44 +44,7 @@ STL2_OPEN_NAMESPACE {
         return __stl2::exchange(next_, next_->next_);
       }
 
-    private:
       pointer next_;
-    };
-
-    template <class T, PointerTo<void> VoidPointer>
-    class node : link<VoidPointer> {
-    public:
-      using pointer = rebind_pointer_t<VoidPointer, node>;
-      using link_t = link<VoidPointer>;
-      using link_pointer = typename link_t::pointer;
-
-      static link_pointer as_link(const pointer& p) noexcept {
-        STL2_EXPECT(p);
-        return __stl2::pointer_to<link_pointer>(static_cast<link_t&>(*p));
-      }
-
-      static pointer as_node(const link_pointer& p) noexcept {
-        STL2_EXPECT(p);
-        return __stl2::pointer_to<pointer>(static_cast<node&>(*p));
-      }
-
-      T& get() & noexcept { return reinterpret_cast<T&>(storage_); }
-      const T& get() const& noexcept { return reinterpret_cast<const T&>(storage_); }
-
-      pointer next() const noexcept {
-        if (auto lnext = link_t::next()) {
-          return as_node(lnext);
-        } else {
-          return nullptr;
-        }
-      }
-
-      void push(pointer new_next) noexcept {
-        STL2_EXPECT(new_next);
-        link_t::push(as_link(new_next));
-      }
-
-    private:
       aligned_storage_t<sizeof(T), alignof(T)> storage_;
     };
 
@@ -90,24 +52,28 @@ STL2_OPEN_NAMESPACE {
     struct cursor {
       using value_type = remove_cv_t<T>;
       using node_t = node<value_type, VoidPointer>;
-      using link_t = link<VoidPointer>;
-      using link_pointer = typename link_t::pointer;
-      using difference_type = difference_type_t<link_pointer>;
+      using node_pointer = rebind_pointer_t<VoidPointer, node_t>;
+      using difference_type = std::ptrdiff_t;
 
       cursor() = default;
       constexpr cursor(default_sentinel) noexcept
       : pos_{nullptr} {}
-      constexpr cursor(const cursor<remove_const_t<T>, VoidPointer>& that) noexcept
-      requires !std::is_const<T>::value
+      template <class U>
+      requires
+        !std::is_const<T>::value &&
+        Same<U, remove_const_t<T>>()
+      constexpr cursor(const cursor<U, VoidPointer>& that) noexcept
       : pos_{that.pos_} {}
 
       T& read() const noexcept {
         STL2_EXPECT(pos_);
-        return node_t::as_node(pos_)->get();
+        static_assert(std::is_standard_layout<node_t>::value);
+        static_assert(offsetof(node_t, next_) == 0);
+        return reinterpret_cast<node_t*>(pos_)->get();
       }
       void next() noexcept {
         STL2_EXPECT(pos_);
-        pos_ = pos_->next();
+        pos_ = std::addressof((*pos_)->next_);
       }
       constexpr bool equal(const cursor& that) const noexcept {
         return pos_ == that.pos_;
@@ -116,43 +82,37 @@ STL2_OPEN_NAMESPACE {
         return pos_ == nullptr;
       }
     private:
-      explicit constexpr cursor(link_pointer pos) noexcept
+      explicit constexpr cursor(node_pointer* pos) noexcept
       : pos_{__stl2::move(pos)} {}
 
-      link_pointer pos_;
+      node_pointer* pos_;
     };
 
     template <class T, PointerTo<void> VoidPointer>
     class base {
     protected:
-      using link_t = link<VoidPointer>;
-      link_t head_{};
-
-      template <class U>
-      using cursor = __fl::cursor<U, VoidPointer>;
+      rebind_pointer_t<VoidPointer, node<T, VoidPointer>> head_ = nullptr;
 
     public:
       using value_type = T;
-      using iterator = __stl2::basic_iterator<cursor<T>>;
-      using const_iterator = __stl2::basic_iterator<cursor<const T>>;
+      using iterator = __stl2::basic_iterator<cursor<T, VoidPointer>>;
+      using const_iterator = __stl2::basic_iterator<cursor<const T, VoidPointer>>;
 
       iterator before_begin() noexcept {
-        return cursor<T>{
-          __stl2::pointer_to<typename link_t::pointer>(head_)};
+        return cursor<T, VoidPointer>{std::addressof(head_)};
       }
       const_iterator before_begin() const noexcept {
-        return cursor<const T>{
-          __stl2::pointer_to<typename link_t::pointer>(head_)};
+        return cursor<const T, VoidPointer>{std::addressof(head_)};
       }
       const_iterator cbefore_begin() const noexcept {
         return before_begin();
       }
 
       iterator begin() noexcept {
-        return cursor<T>{head_.next()};
+        return cursor<T, VoidPointer>{head_ ? std::addressof(head_->next_): nullptr};
       }
       const_iterator begin() const noexcept {
-        return cursor<const T>{head_.next()};
+        return cursor<const T, VoidPointer>{head_ ? std::addressof(head_->next_) : nullptr};
       }
       const_iterator cbegin() const noexcept {
         return begin();
@@ -167,11 +127,11 @@ STL2_OPEN_NAMESPACE {
 
       T& front() noexcept {
         STL2_EXPECT(head_);
-        return *begin();
+        return head_->get();
       }
       const T& front() const noexcept {
         STL2_EXPECT(head_);
-        return *begin();
+        return head_->get();
       }
     };
   }
@@ -241,7 +201,8 @@ STL2_OPEN_NAMESPACE {
         traits::deallocate(alloc, new_node, 1);
         throw;
       }
-      head_.push(node_t::as_link(new_node));
+      new_node->next_ = head_;
+      head_ = new_node;
     }
 
     void push_front(const T& t)
@@ -266,7 +227,8 @@ STL2_OPEN_NAMESPACE {
     {
       STL2_EXPECT(head_);
       auto alloc = node_allocator_type{detail::ebo_box<A>::get()};
-      Same<node_pointer> tmp = node_t::as_node(head_.pop());
+      node_pointer tmp = head_;
+      head_ = head_->next_;
       traits::destroy(alloc, std::addressof(tmp->get()));
       traits::deallocate(alloc, tmp, 1);
     }
