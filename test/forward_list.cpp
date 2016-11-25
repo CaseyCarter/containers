@@ -15,27 +15,44 @@
 #include <stl2/view/repeat_n.hpp>
 #include <stl2/view/take_exactly.hpp>
 #include <iostream>
+#include <memory>
 #include "../cmcstl2/test/simple_test.hpp"
 
 namespace ranges = std::experimental::ranges;
 
-void dump(const ranges::ext::StreamInsertable& t) {
-	std::cout << t;
-}
-
-void dump(ranges::Range&& r) {
-	std::cout << '{';
-	auto pos = ranges::begin(r);
-	auto end = ranges::end(r);
-	if (pos != end) {
-		dump(*pos);
-		while (++pos != end) {
-			std::cout << ", ";
-			dump(*pos);
-		}
+constexpr struct dump_fn {
+	void operator()(const ranges::ext::StreamInsertable& t) const {
+		std::cout << t;
 	}
-	std::cout << '}';
-}
+
+	template <class T>
+	requires
+		requires(const dump_fn& f, const T& t) {
+			f(t);
+		}
+	void operator()(const std::unique_ptr<T>& u) const {
+		(*this)(*u);
+	}
+
+	template <ranges::Range Rng>
+	requires
+		requires(const dump_fn& f, Rng&& r) {
+			f(*ranges::begin(r));
+		}
+	void operator()(Rng&& r) const {
+		std::cout << '{';
+		auto pos = ranges::begin(r);
+		auto end = ranges::end(r);
+		if (pos != end) {
+			(*this)(*pos);
+			while (++pos != end) {
+				std::cout << ", ";
+				(*this)(*pos);
+			}
+		}
+		std::cout << '}';
+	}
+} dump{};
 
 namespace incomplete {
 	ranges::forward_list<struct foo> list;
@@ -112,6 +129,23 @@ int main() {
 		CHECK(ranges::distance(list) == 8);
 		auto l2 = list;
 		CHECK(ranges::distance(l2) == 8);
+	}
+
+	{
+		ranges::forward_list<std::unique_ptr<int>> list;
+		for (auto&& i : ranges::take_exactly_view<ranges::iota_view<int>>{{}, 8}) {
+			list.push_front(std::make_unique<int>(i));
+		}
+		CHECK(ranges::distance(list) == 8);
+
+		auto l2 = std::move(list);
+		CHECK(ranges::distance(list) == 0);
+		CHECK(ranges::distance(l2) == 8);
+
+		auto p = l2.begin();
+		for (auto i = 8; i-- > 0; ++p) {
+			CHECK(**p == i);
+		}
 	}
 
 	incomplete::test();

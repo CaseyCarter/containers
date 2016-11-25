@@ -26,6 +26,10 @@ STL2_OPEN_NAMESPACE {
 		struct node {
 			using pointer = rebind_pointer_t<VoidPointer, node>;
 
+			node() = default;
+			node(const node&) = delete;
+			node& operator=(const node&) & = delete;
+
 			T& get() & noexcept { return reinterpret_cast<T&>(storage_); }
 			const T& get() const& noexcept { return reinterpret_cast<const T&>(storage_); }
 
@@ -100,6 +104,12 @@ STL2_OPEN_NAMESPACE {
 			using value_type = T;
 			using iterator = __stl2::basic_iterator<cursor>;
 			using const_iterator = __stl2::basic_iterator<const_cursor>;
+
+			base() = default;
+			base(base&& that) noexcept
+			: head_(__stl2::exchange(that.head_, {})) {}
+
+			base& operator=(base&&) & = delete;
 
 			iterator before_begin() noexcept {
 				return cursor{std::addressof(head_)};
@@ -188,8 +198,9 @@ STL2_OPEN_NAMESPACE {
 			insert_after(before_begin(), that);
 		}
 
-		// FIXME: NYI
-		forward_list(forward_list&&) = delete;
+		forward_list(forward_list&& that) noexcept
+		: base_t{std::move(that)}
+		, detail::ebo_box<A>{std::move(that.detail::ebo_box<A>::get())} {}
 
 		template <InputIterator I, Sentinel<I> S>
 		requires
@@ -225,8 +236,14 @@ STL2_OPEN_NAMESPACE {
 		: forward_list{ranges::begin(rng), ranges::end(rng)}
 		{}
 
-		forward_list& operator=(forward_list&&) & = delete;
-		forward_list& operator=(const forward_list&) & = delete;
+		forward_list& operator=(forward_list&&) & {
+			std::terminate(); // FIXME: NYI
+			return *this;
+		}
+		forward_list& operator=(const forward_list&) & {
+			std::terminate(); // FIXME: NYI
+			return *this;
+		}
 
 		using typename base_t::iterator;
 		using typename base_t::const_iterator;
