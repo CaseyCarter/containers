@@ -12,13 +12,23 @@
 #ifndef STL2_FORWARD_LIST_HPP
 #define STL2_FORWARD_LIST_HPP
 
-#include <stl2/algorithm.hpp>
-#include <stl2/iterator.hpp>
+#ifndef STL2_FORWARD_USELESS_TRASH
+#define STL2_FORWARD_USELESS_TRASH 1
+#endif // STL2_FORWARD_USELESS_TRASH
+
+#include <stl2/memory.hpp>
 #include <stl2/type_traits.hpp>
+#include <stl2/utility.hpp>
 #include <stl2/detail/ebo_box.hpp>
 #include <stl2/detail/fwd.hpp>
+#include <stl2/detail/algorithm/equal.hpp>
+#include <stl2/detail/algorithm/lexicographical_compare.hpp>
 #include <stl2/detail/concepts/allocator.hpp>
-#include <memory>
+#include <stl2/detail/concepts/core.hpp>
+#include <stl2/detail/concepts/pointer.hpp>
+#include <stl2/detail/iterator/basic_iterator.hpp>
+#include <stl2/detail/iterator/concepts.hpp>
+#include <stl2/detail/iterator/move_iterator.hpp>
 
 STL2_OPEN_NAMESPACE {
 	namespace __fl {
@@ -49,15 +59,15 @@ STL2_OPEN_NAMESPACE {
 			}
 
 			pointer next_;
-			aligned_storage_t<sizeof(T), alignof(T)> storage_;
+			std::aligned_storage_t<sizeof(T), alignof(T)> storage_;
 		};
 
 		template <class T, PointerTo<void> VoidPointer>
 		struct cursor {
-			using value_type = remove_cv_t<T>;
+			using value_type = std::remove_cv_t<T>;
+			using difference_type = std::ptrdiff_t;
 			using node_t = node<value_type, VoidPointer>;
 			using node_pointer = rebind_pointer_t<VoidPointer, node_t>;
-			using difference_type = std::ptrdiff_t;
 
 			cursor() = default;
 			constexpr cursor(default_sentinel) noexcept
@@ -65,14 +75,12 @@ STL2_OPEN_NAMESPACE {
 			template <class U>
 			requires
 				std::is_const<T>::value &&
-				Same<U, remove_const_t<T>>()
+				Same<U, std::remove_const_t<T>>()
 			constexpr cursor(const cursor<U, VoidPointer>& that) noexcept
 			: pos_{that.pos_} {}
 
 			T& read() const noexcept {
 				STL2_EXPECT(pos_);
-				static_assert(std::is_standard_layout<node_t>::value);
-				static_assert(offsetof(node_t, next_) == 0);
 				return reinterpret_cast<node_t*>(pos_)->get();
 			}
 			void next() noexcept {
@@ -161,13 +169,26 @@ STL2_OPEN_NAMESPACE {
 		using typename base_t::const_cursor;
 		using base_t::head_;
 
+		using alloc_base_t = detail::ebo_box<A>;
+
 		using node_t = __fl::node<T, proto_allocator_pointer_t<A>>;
 		using node_allocator_type = rebind_allocator_t<A, node_t>;
 		using node_pointer = allocator_pointer_t<node_allocator_type>;
 		using traits = std::allocator_traits<node_allocator_type>;
 
 	public:
+		using typename base_t::value_type;
 		using allocator_type = A;
+#if STL2_FORWARD_USELESS_TRASH
+		using pointer = allocator_pointer_t<A>;
+		using const_pointer = rebind_pointer_t<pointer, const T>;
+		using reference = T&;
+		using const_reference = const T&;
+		using size_type = allocator_difference_t<A>;
+		using difference_type = allocator_difference_t<A>;
+#endif // STL2_FORWARD_USELESS_TRASH
+		using typename base_t::iterator;
+		using typename base_t::const_iterator;
 
 		~forward_list()
 		requires
@@ -182,21 +203,46 @@ STL2_OPEN_NAMESPACE {
 
 		constexpr explicit forward_list(allocator_type a) noexcept
 		requires AllocatorDestructible<node_allocator_type, T>()
-		: detail::ebo_box<A>(std::move(a)) {}
+		: alloc_base_t(std::move(a)) {}
 
-		forward_list(const forward_list& that)
+		explicit forward_list(size_type n, allocator_type a)
+		requires
+			Allocator<node_allocator_type, node_t>() &&
+			AllocatorDefaultConstructible<node_allocator_type, T>()
+		: forward_list{std::move(a)}
+		{
+			while (n-- > 0) {
+				emplace_front();
+			}
+		}
+		explicit forward_list(size_type n)
+		requires
+			DefaultConstructible<A>() &&
+			Allocator<node_allocator_type, node_t>() &&
+			AllocatorDefaultConstructible<node_allocator_type, T>()
+		: forward_list{n, allocator_type{}}
+		{}
+
+#if STL2_FORWARD_USELESS_TRASH
+		// Use forward_list{view::repeat_n(value, n)}
+		forward_list(size_type n, const T& value, allocator_type a)
 		requires
 			Allocator<node_allocator_type, node_t>() &&
 			AllocatorCopyConstructible<node_allocator_type, T>()
-		: forward_list{std::allocator_traits<A>::select_on_container_copy_construction(
-			that.detail::ebo_box<A>::get())}
+		: forward_list{std::move(a)}
 		{
-			insert_after(before_begin(), that);
+			while (n-- > 0) {
+				emplace_front(value);
+			}
 		}
-
-		forward_list(forward_list&& that) noexcept
-		: base_t{std::move(that)}
-		, detail::ebo_box<A>{std::move(that.detail::ebo_box<A>::get())} {}
+		forward_list(size_type n, const T& value)
+		requires
+			DefaultConstructible<A>() &&
+			Allocator<node_allocator_type, node_t>() &&
+			AllocatorCopyConstructible<node_allocator_type, T>()
+		: forward_list{n, value, allocator_type{}}
+		{}
+#endif // STL2_FORWARD_USELESS_TRASH
 
 		template <InputIterator I, Sentinel<I> S>
 		requires
@@ -232,6 +278,38 @@ STL2_OPEN_NAMESPACE {
 		: forward_list{__stl2::begin(rng), __stl2::end(rng)}
 		{}
 
+		forward_list(const forward_list& that, allocator_type a)
+		requires
+			Allocator<node_allocator_type, node_t>() &&
+			AllocatorCopyConstructible<node_allocator_type, T>()
+		: forward_list{std::move(a)}
+		{
+			insert_after(before_begin(), that);
+		}
+		forward_list(const forward_list& that)
+		requires
+			Allocator<node_allocator_type, node_t>() &&
+			AllocatorCopyConstructible<node_allocator_type, T>()
+		: forward_list{that,
+			std::allocator_traits<A>::select_on_container_copy_construction(
+				that.alloc())}
+		{}
+
+		forward_list(forward_list&& that) noexcept
+		: base_t{std::move(that)}
+		, alloc_base_t{std::move(that.alloc())} {}
+		forward_list(forward_list&& that, allocator_type a) noexcept
+		: forward_list{std::move(a)}
+		{
+			if (traits::is_always_equal::value || that.alloc() == a) {
+				head_ = __stl2::exchange(that.head, {});
+			} else {
+				insert_after(before_begin(),
+					__stl2::make_move_iterator(that.begin()),
+					__stl2::make_move_sentinel(that.end()));
+			}
+		}
+
 		forward_list& operator=(forward_list&& that) &
 		noexcept(traits::is_always_equal::value ||
 			traits::propagate_on_container_move_assignment::value)
@@ -242,11 +320,11 @@ STL2_OPEN_NAMESPACE {
 		{
 			if (std::addressof(that) != this) {
 				if (traits::is_always_equal::value || traits::propagate_on_container_move_assignment::value ||
-					detail::ebo_box<A>::get() == that.detail::ebo_box<A>::get()) {
+					alloc() == that.alloc()) {
 					if (traits::is_always_equal::value || traits::propagate_on_container_move_assignment::value) {
 						clear();
 						if (traits::propagate_on_container_move_assignment::value) {
-							detail::ebo_box<A>::get() = std::move(that.detail::ebo_box<A>::get());
+							alloc() = std::move(that.alloc());
 						}
 					}
 					head_ = __stl2::exchange(that.head_, {});
@@ -267,10 +345,10 @@ STL2_OPEN_NAMESPACE {
 			if (std::addressof(that) != this) {
 				if (!traits::is_always_equal::value &&
 					traits::propagate_on_container_copy_assignment::value &&
-					!(detail::ebo_box<A>::get() == that.detail::ebo_box<A>::get()))
+					!(alloc() == that.alloc()))
 				{
 					clear();
-					detail::ebo_box<A>::get() = that.detail::ebo_box<A>::get();
+					alloc() = that.alloc();
 				}
 				assign(that.begin(), that.end());
 			}
@@ -314,12 +392,9 @@ STL2_OPEN_NAMESPACE {
 			assign(__stl2::begin(rng), __stl2::end(rng));
 		}
 
-		using typename base_t::iterator;
 		using base_t::before_begin;
 		using base_t::begin;
 		using base_t::end;
-
-		using typename base_t::const_iterator;
 		using base_t::cbefore_begin;
 		using base_t::cbegin;
 		using base_t::cend;
@@ -328,11 +403,11 @@ STL2_OPEN_NAMESPACE {
 		noexcept(traits::is_always_equal::value || traits::propagate_on_container_swap::value)
 		{
 			if (traits::propagate_on_container_swap::value) {
-				ranges::swap(detail::ebo_box<A>::get(), that.detail::ebo_box<A>::get());
+				__stl2::swap(alloc(), that.alloc());
 			} else if (!traits::is_always_equal::value) {
-				STL2_EXPECT(detail::ebo_box<A>::get() == that.detail::ebo_box<A>::get());
+				STL2_EXPECT(alloc() == that.alloc());
 			}
-			ranges::swap(head_, that.head_);
+			__stl2::swap(head_, that.head_);
 		}
 		friend void swap(forward_list& lhs, forward_list& rhs)
 		noexcept(noexcept(lhs.swap(rhs)))
@@ -341,7 +416,7 @@ STL2_OPEN_NAMESPACE {
 		}
 
 		allocator_type get_allocator() const noexcept {
-			return detail::ebo_box<A>::get();
+			return alloc();
 		}
 
 		template <class...Args>
@@ -349,13 +424,13 @@ STL2_OPEN_NAMESPACE {
 			Allocator<node_allocator_type, node_t>() &&
 			AllocatorConstructible<node_allocator_type, T, Args...>()
 		iterator emplace_after(const_iterator where, Args&&...args) {
-			auto alloc = node_allocator_type{detail::ebo_box<A>::get()};
-			Same<node_pointer> new_node = traits::allocate(alloc, 1);
+			auto a = node_allocator_type{alloc()};
+			Same<node_pointer> new_node = traits::allocate(a, 1);
 			try {
-				traits::construct(alloc, std::addressof(new_node->get()),
+				traits::construct(a, std::addressof(new_node->get()),
 					__stl2::forward<Args>(args)...);
 			} catch(...) {
-				traits::deallocate(alloc, new_node, 1);
+				traits::deallocate(a, new_node, 1);
 				throw;
 			}
 			new_node->next_ = *where.pos_;
@@ -391,11 +466,11 @@ STL2_OPEN_NAMESPACE {
 			AllocatorDestructible<node_allocator_type, T>()
 		{
 			STL2_EXPECT(head_);
-			auto alloc = node_allocator_type{detail::ebo_box<A>::get()};
+			auto a = node_allocator_type{alloc()};
 			node_pointer tmp = head_;
 			head_ = head_->next_;
-			traits::destroy(alloc, std::addressof(tmp->get()));
-			traits::deallocate(alloc, tmp, 1);
+			traits::destroy(a, std::addressof(tmp->get()));
+			traits::deallocate(a, tmp, 1);
 		}
 
 		void clear() noexcept
@@ -444,20 +519,54 @@ STL2_OPEN_NAMESPACE {
 		}
 
 	private:
+		A& alloc() { return alloc_base_t::get(); }
+		const A& alloc() const { return alloc_base_t::get(); }
+
 		void erase_after_(const_iterator first, node_pointer last) noexcept
 		requires
 			Allocator<node_allocator_type, node_t>() &&
 			AllocatorDestructible<node_allocator_type, T>()
 		{
-			auto alloc = node_allocator_type{detail::ebo_box<A>::get()};
+			auto a = node_allocator_type{alloc()};
 			auto ptr = __stl2::exchange(*first.pos_, last);
 			while (ptr != last) {
 				auto tmp = __stl2::exchange(ptr, ptr->next_);
-				traits::destroy(alloc, std::addressof(tmp->get()));
-				traits::deallocate(alloc, tmp, 1);
+				traits::destroy(a, std::addressof(tmp->get()));
+				traits::deallocate(a, tmp, 1);
 			}
 		}
 	};
+
+	template <class T, class TA, class U, class UA>
+	requires EqualityComparable<T, U>()
+	bool operator==(const forward_list<T, TA>& t, const forward_list<U, UA>& u) {
+		return __stl2::equal(t, u);
+	}
+	template <class T, class TA, class U, class UA>
+	requires EqualityComparable<T, U>()
+	inline bool operator!=(const forward_list<T, TA>& t, const forward_list<U, UA>& u) {
+		return !(t == u);
+	}
+	template <class T, class TA, class U, class UA>
+	requires StrictTotallyOrdered<T, U>()
+	bool operator<(const forward_list<T, TA>& t, const forward_list<U, UA>& u) {
+		return __stl2::lexicographical_compare(t, u);
+	}
+	template <class T, class TA, class U, class UA>
+	requires StrictTotallyOrdered<T, U>()
+	bool operator>(const forward_list<T, TA>& t, const forward_list<U, UA>& u) {
+		return (u < t);
+	}
+	template <class T, class TA, class U, class UA>
+	requires StrictTotallyOrdered<T, U>()
+	bool operator<=(const forward_list<T, TA>& t, const forward_list<U, UA>& u) {
+		return !(u < t);
+	}
+	template <class T, class TA, class U, class UA>
+	requires StrictTotallyOrdered<T, U>()
+	bool operator>=(const forward_list<T, TA>& t, const forward_list<U, UA>& u) {
+		return !(t < u);
+	}
 } STL2_CLOSE_NAMESPACE
 
 #endif

@@ -67,6 +67,23 @@ struct S {};
 
 int main() {
 	{
+		using node_t = __stl2::__fl::node<int, void*>;
+		static_assert(std::is_standard_layout<node_t>::value);
+		static_assert(offsetof(node_t, next_) == 0);
+	}
+	{
+		struct S {
+			virtual ~S();
+			S() {}
+			S(S&&) {}
+			S(const S&) {}
+		};
+		using node_t = __stl2::__fl::node<S, void*>;
+		static_assert(std::is_standard_layout<node_t>::value);
+		static_assert(offsetof(node_t, next_) == 0);
+	}
+
+	{
 		ranges::forward_list<int>{};
 		ranges::forward_list<S>{};
 	}
@@ -122,7 +139,7 @@ int main() {
 		CHECK(ranges::distance(list) == 8);
 		CHECK(ranges::is_sorted(list));
 		auto l2 = list;
-		CHECK(ranges::equal(list, l2));
+		CHECK(list == l2);
 	}
 	{
 		ranges::forward_list<S> list{ranges::repeat_n_view<S>{{}, 8}};
