@@ -92,11 +92,11 @@ int main() {
 		for (auto i = 1; i < 32; ++i) {
 			vec.push_back(vec.back());
 		}
-		CHECK(ranges::equal(vec, ranges::repeat_n_view<int>{42, 32}));
+		CHECK(ranges::equal(vec, ranges::ext::repeat_n_view<int>{42, 32}));
 		for (auto i = 0; i < 16; ++i) {
 			vec.pop_back();
 		}
-		CHECK(ranges::equal(vec, ranges::repeat_n_view<int>{42, 16}));
+		CHECK(ranges::equal(vec, ranges::ext::repeat_n_view<int>{42, 16}));
 	}
 
 	incomplete::test();

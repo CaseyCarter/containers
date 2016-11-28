@@ -118,12 +118,14 @@ int main() {
 	}
 
 	{
-		ranges::forward_list<int> list{ranges::repeat_n_view<int>{42, 4}};
+		ranges::forward_list<int> list(ranges::ext::repeat_n_view<int>{42, 4});
 		CHECK(ranges::distance(list) == 4);
-		CHECK(ranges::equal(list, ranges::repeat_n_view<int>{42, 4}));
+		CHECK(ranges::equal(list, ranges::ext::repeat_n_view<int>{42, 4}));
+		ranges::forward_list<int> l2(4, 42);
+		CHECK(list == l2);
 	}
 	{
-		ranges::forward_list<S> list{ranges::repeat_n_view<S>{{}, 8}};
+		ranges::forward_list<S> list(ranges::ext::repeat_n_view<S>{{}, 8});
 		CHECK(ranges::distance(list) == 8);
 	}
 	{
@@ -135,14 +137,14 @@ int main() {
 	}
 
 	{
-		ranges::forward_list<int> list{ranges::take_exactly_view<ranges::iota_view<int>>{{}, 8}};
+		ranges::forward_list<int> list(ranges::ext::take_exactly_view<ranges::ext::iota_view<int>>{{}, 8});
 		CHECK(ranges::distance(list) == 8);
 		CHECK(ranges::is_sorted(list));
 		auto l2 = list;
 		CHECK(list == l2);
 	}
 	{
-		ranges::forward_list<S> list{ranges::repeat_n_view<S>{{}, 8}};
+		ranges::forward_list<S> list(ranges::ext::repeat_n_view<S>{{}, 8});
 		CHECK(ranges::distance(list) == 8);
 		auto l2 = list;
 		CHECK(ranges::distance(l2) == 8);
@@ -150,7 +152,7 @@ int main() {
 
 	{
 		ranges::forward_list<std::unique_ptr<int>> list;
-		for (auto&& i : ranges::take_exactly_view<ranges::iota_view<int>>{{}, 8}) {
+		for (auto&& i : ranges::ext::take_exactly_view<ranges::ext::iota_view<int>>{{}, 8}) {
 			list.push_front(std::make_unique<int>(i));
 		}
 		CHECK(ranges::distance(list) == 8);
