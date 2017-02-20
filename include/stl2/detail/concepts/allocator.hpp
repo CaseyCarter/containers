@@ -211,6 +211,7 @@ STL2_OPEN_NAMESPACE {
 		};
 	}
 
+   // do these four serve the same purpose as Insertable, etc?
 	template <class A, class T, class...Args>
 	concept bool AllocatorConstructible() {
 		return AllocatorDestructible<A, T>() &&
@@ -234,6 +235,9 @@ STL2_OPEN_NAMESPACE {
 		return AllocatorMoveConstructible<A, T>() &&
 			AllocatorConstructible<A, T, const T&>();
 	}
+
+   template <typename T>
+   using allocator_t = typename T::allocator_type;
 } STL2_CLOSE_NAMESPACE
 
 #endif

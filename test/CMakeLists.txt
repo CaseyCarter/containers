@@ -9,15 +9,17 @@
 #
 # Project home: https://github.com/caseycarter/cmcstl2
 #
-add_executable(headers headers.cpp headers2.cpp)
-add_test(test.headers headers)
+#add_executable(headers headers.cpp headers2.cpp)
+#add_test(test.headers headers)
 
-add_executable(forward_list forward_list.cpp)
-add_test(test.forward_list forward_list)
+#add_executable(forward_list forward_list.cpp)
+#add_test(test.forward_list forward_list)
 
-add_executable(vector vector.cpp)
-add_test(test.vector vector)
+#add_executable(vector vector.cpp)
+#add_test(test.vector vector)
 
 add_executable(allocator allocator.cpp)
 target_compile_definitions(allocator PRIVATE -D_ISOC11_SOURCE)
 add_test(test.allocator allocator)
+
+add_subdirectory(container)
