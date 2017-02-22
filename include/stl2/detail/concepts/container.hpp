@@ -26,6 +26,18 @@ STL2_OPEN_NAMESPACE {
    using const_iterator_t = iterator_t<const T>;
 
    template <class T>
+   using reverse_iterator_t =  decltype(__stl2::rbegin(declval<T&>()));
+
+   template <class T>
+   using reverse_sentinel_t =  decltype(__stl2::rend(declval<T&>()));
+
+   template <class T>
+   using const_reverse_iterator_t = reverse_iterator_t<const T>;
+
+   template <class T>
+   using const_reverse_sentinel_t = reverse_sentinel_t<const T>;
+
+   template <class T>
    using const_sentinel_t = sentinel_t<const T>;
 
    template <class T>
@@ -33,38 +45,39 @@ STL2_OPEN_NAMESPACE {
 
    template <class X>
    concept bool __ContainerAliases() {
-      return requires(X) {
+      return requires {
          typename value_type_t<X>;
          typename X::reference;
          typename X::const_reference;
          typename difference_type_t<X>;
          typename size_type_t<X>;
       } &&
-      models::Same<typename X::reference, value_type_t<X>&> &&
-      models::Same<typename X::const_reference, const value_type_t<X>&> &&
-      models::UnsignedIntegral<size_type_t<X>> && 
-      models::SignedIntegral<difference_type_t<X>> &&
+      Same<typename X::reference, value_type_t<X>&>() &&
+      Same<typename X::const_reference, const value_type_t<X>&>() &&
+      UnsignedIntegral<size_type_t<X>>() && 
+      SignedIntegral<difference_type_t<X>>() &&
       sizeof(size_type_t<X>) >= sizeof(difference_type_t<X>);
    }
 
    template <class X>
    concept bool __ContainerIterators() {
-      return models::ForwardRange<X> &&
-         requires(X a, const X& b) {
+      return ForwardRange<X>() &&
+         requires {
             typename iterator_t<X>;
             typename sentinel_t<X>;
             typename const_iterator_t<X>;
             typename const_sentinel_t<X>;
-      } &&
-         models::Constructible<const_iterator_t<X>, iterator_t<X>> &&
-         models::Same<value_type_t<iterator_t<X>>, value_type_t<X>> &&
-         requires(X a, const X b) {
+         } &&
+         Constructible<const_iterator_t<X>, iterator_t<X>>() &&
+         Same<value_type_t<iterator_t<X>>, value_type_t<X>>() &&
+         requires(X a, const X b, iterator_t<X> i) {
             {a.begin()} -> iterator_t<X>;
             {a.end()} -> sentinel_t<X>;
             {a.cbegin()} -> const_iterator_t<X>;
             {a.cend()} -> const_sentinel_t<X>;
             {b.begin()} -> const_iterator_t<X>;
             {b.end()} -> const_sentinel_t<X>;
+            //{i - i} -> Same<difference_type_t<X>>;
       };
    }
 
@@ -72,13 +85,12 @@ STL2_OPEN_NAMESPACE {
    // both MoveAssignable _and_ CopyAssignable be true
    template <class X>
    concept bool Container() {
-      return InputRange<X>() &&
-         EqualityComparable<X>() &&
+      return EqualityComparable<value_type_t<X>>() &&
+         CopyInsertable<X, value_type_t<X>, __allocator_required_t<X>>() &&
+        // Regular<X>() &&
          __ContainerAliases<X>() &&
          __ContainerIterators<X>() &&
-         CopyInsertable<X, value_type_t<X>, __allocator_required_t<X>>() &&
          Erasable<X, value_type_t<X>, __allocator_required_t<X>>() &&
-         Swappable<X&>() &&
          requires(X a, X b, const X& c) {
             {a.swap(b)}; // TODO: specify a noexcept specifier that captures _all_ C++17 containers, including array
             {a.size()} noexcept -> size_type_t<X>;       // TODO: debate size_type_t vs
@@ -88,17 +100,75 @@ STL2_OPEN_NAMESPACE {
       // axiom: a.swap(b) is equivalent to swap(a, b)
    }
 
+   template <class X>
+   concept bool OrderedContainer() {
+      return Container<X>() &&
+         StrictTotallyOrdered<value_type_t<X>>() &&
+         StrictTotallyOrdered<X>();
+   }
+
+   template <class X>
+   concept bool ReversibleContainer() {
+      return Container<X>() &&
+         BidirectionalRange<X>() &&
+         requires(X x, const X cx) {
+            typename reverse_iterator_t<X>;
+            typename reverse_sentinel_t<X>;
+            typename const_reverse_iterator_t<X>;
+            typename const_reverse_sentinel_t<X>;
+            {x.rbegin()} -> reverse_iterator_t<X>;
+            {x.rend()} -> reverse_sentinel_t<X>;
+            {x.crbegin()} -> const_reverse_iterator_t<X>;
+            {x.crend()} -> const_reverse_sentinel_t<X>;
+            {cx.rbegin()} -> const_reverse_iterator_t<X>;
+            {cx.rend()} -> const_reverse_sentinel_t<X>;
+         };
+   }
+
+   template <class X>
+   concept bool ReversibleOrderedContainer() {
+      return OrderedContainer<X>() &&
+         ReversibleContainer<X>();
+   }
+
+   // note I am refusing to make AllocatorAwareOrderedContainer,
+   // AllocatorAwareReversibleContainer, and AllocatorAwareReversibleOrderedContainer.
+   // Users can type out the Ordered/Reversible requirements if they need that aspect
+   template <class X, class T, class A>
+   concept bool __AllocatorAwareContainerTraits() {
+      return Same<value_type_t<A>, T>() &&
+         DefaultConstructible<A>() &&
+         DefaultConstructible<X>() &&
+         Constructible<X, A>() &&
+         //Assignable<T&, const T&>() &&        doesn't permit [unordered_]map
+         Constructible<X, const X&, A>() &&
+         MoveInsertable<X, T, A>() &&
+         //Assignable<T&, T>() &&               ditto
+         Constructible<X, X&&, A>();
+   }
+
+   template <class X>
+   concept bool AllocatorAwareContainer() {
+      return Container<X>() &&
+         requires {typename allocator_t<X>;} &&
+         __AllocatorAwareContainerTraits<X, value_type_t<X>, allocator_t<X>>();
+   }
+
    template <class X, class T, class A, class... Args>
    concept bool __SequenceAllocatable() {
-      return
+      return Constructible<X, size_type_t<X>, T>() && // axiom: count(a, t) == n;
+         Constructible<X, initializer_list<T>>();/* && // axiom: ranges::equal(a, il.begin());
          requires(X a, initializer_list<T> il, size_type_t<X> n,
                   const_iterator_t<X> p, const_iterator_t<X> q,
                   T t, T&& rv, Args&&... args) {
-         {X(n, t)}; // axiom: count(a, t) == n;
-         requires EmplaceConstructible<X, T, A, value_type_t<decltype(*i)>>;
-         {X(il)}; // axiom: ranges::equal(a, il.begin());
-         //{}
-      };
+      };*/
+   }
+
+   template <class X, class T, class A, class I, class S, class... Args>
+   concept bool __SequenceAllocatable() {
+      return Assignable<value_type_t<X>&, value_type_t<I>>() &&
+         Constructible<X, I, S>() && // axiom: ranges::distance(i, j) == ranges::distance(a.begin(), a.end()) && ranges::equal(a, i);
+         EmplaceConstructible<X, T, A, value_type_t<I>>();
    }
 
    template <class X>
@@ -107,14 +177,12 @@ STL2_OPEN_NAMESPACE {
          __SequenceAllocatable<X, value_type_t<X>, __allocator_required_t<X>>();
    }
 
-   template <class X, class I>
+   template <class X, class I, class S>
    concept bool SequenceContainer() {
       return SequenceContainer<X>() &&
          Iterator<I>() &&
-         requires(I i, I j, value_type<X> t) {
-            {t = *i} -> value_type<X>&;
-            {X(i, j)}; // axiom: ranges::distance(i, j) == ranges::distance(a.begin(), a.end()) && ranges::equal(a, i);
-      };
+         Sentinel<S, I>() &&
+         __SequenceAllocatable<X, value_type_t<X>, __allocator_required_t<X>, I>();
    }
 } STL2_CLOSE_NAMESPACE
 #endif // STL2_DETAIL_CONCEPTS_CONTAINER_HPP

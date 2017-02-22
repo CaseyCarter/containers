@@ -19,6 +19,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <stl2/utility.hpp>
@@ -44,17 +45,17 @@ namespace std {
 
 ///////////////////// with std::allocator and move-only types /////////////////////
 // sequence containers
-CONCEPT_ASSERT(Container<std::deque<std::unique_ptr<int>>>());
-CONCEPT_ASSERT(!Container<std::forward_list<std::istream>>());
-CONCEPT_ASSERT(Container<std::list<std::ostream>>());
-CONCEPT_ASSERT(Container<std::vector<std::unique_ptr<std::ostream>>>());
+CONCEPT_ASSERT(!Container<std::deque<std::unique_ptr<int>>>());
+CONCEPT_ASSERT(!Container<std::forward_list<std::istringstream>>());
+CONCEPT_ASSERT(!Container<std::list<std::ostream>>());
+CONCEPT_ASSERT(!Container<std::vector<std::unique_ptr<std::ostream>>>());
 
 // associative containers
-CONCEPT_ASSERT(Container<std::map<int, std::unique_ptr<int>>>());
-CONCEPT_ASSERT(Container<std::map<std::unique_ptr<int>, std::unique_ptr<int>>>());
-CONCEPT_ASSERT(Container<std::set<std::ostream>>());
-CONCEPT_ASSERT(Container<std::unordered_map<std::istream, int>>());
-CONCEPT_ASSERT(Container<std::unordered_set<std::unique_ptr<std::ostream>>>());
+CONCEPT_ASSERT(!Container<std::map<int, std::unique_ptr<int>>>());
+CONCEPT_ASSERT(!Container<std::map<std::unique_ptr<int>, std::unique_ptr<int>>>());
+CONCEPT_ASSERT(!Container<std::set<std::ostream>>());
+CONCEPT_ASSERT(!Container<std::unordered_map<std::unique_ptr<std::istream>, int>>());
+CONCEPT_ASSERT(!Container<std::unordered_set<std::unique_ptr<std::ostream>>>());
 
 // Bjarne's "almost containers"
-CONCEPT_ASSERT(Container<std::array<std::ostream, 10>>()); // I think this one is okay to pass
+CONCEPT_ASSERT(!Container<std::array<std::ostream, 10>>()); // I think this one is okay to pass

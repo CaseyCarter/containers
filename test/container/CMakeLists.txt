@@ -11,6 +11,10 @@
 # Project home: https://github.com/caseycarter/cmcstl2
 #
 
-add_executable(container container.cpp container2.cpp container3.cpp)
+add_executable(container container.cpp
+                         container2.cpp
+                         container3.cpp
+                         reversible_container.cpp
+                         allocator_aware.cpp)
 target_compile_definitions(container PRIVATE -DVALIDATE_STL2)
 add_test(test.container container)

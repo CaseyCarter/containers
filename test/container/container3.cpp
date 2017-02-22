@@ -44,18 +44,26 @@ namespace std {
    };
 }
 
-///////////////////// with std::allocator and non-movable types /////////////////////
+class Fixed {
+public:
+   Fixed(const Fixed&) = delete;
+   Fixed& operator=(const Fixed&) = delete;
+
+   bool operator=(const Fixed&) const noexcept;
+};
+
+///////////////////// with std::allocator and non-Movable types /////////////////////
 // sequence containers
-CONCEPT_ASSERT(Container<std::deque<std::mutex>>());
+CONCEPT_ASSERT(!Container<std::deque<std::mutex>>());
 CONCEPT_ASSERT(!Container<std::forward_list<std::random_device>>());
-CONCEPT_ASSERT(Container<std::list<std::mutex>>());
-CONCEPT_ASSERT(Container<std::vector<std::random_device>>());
+CONCEPT_ASSERT(!Container<std::list<std::mutex>>());
+CONCEPT_ASSERT(!Container<std::vector<std::random_device>>());
 
 // associative containers
-CONCEPT_ASSERT(Container<std::map<std::mutex, std::random_device>>());
-CONCEPT_ASSERT(Container<std::set<std::random_device>>());
-CONCEPT_ASSERT(Container<std::unordered_map<std::random_device, std::mutex>>());
-CONCEPT_ASSERT(Container<std::unordered_set<std::mutex>>());
+//CONCEPT_ASSERT(!Container<std::map<Fixed, Fixed>>());
+//CONCEPT_ASSERT(!Container<std::set<Fixed>>());
+//CONCEPT_ASSERT(!Container<std::unordered_map<Fixed, Fixed>>());
+//CONCEPT_ASSERT(!Container<std::unordered_set<Fixed>>());
 
 // Bjarne's "almost containers"
-CONCEPT_ASSERT(Container<std::array<std::random_device, 10>>()); // I think this one is okay to pass
+CONCEPT_ASSERT(!Container<std::array<std::random_device, 10>>()); // I think this one is okay to pass

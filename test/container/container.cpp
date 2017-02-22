@@ -33,27 +33,32 @@
 
 namespace ranges = __stl2;
 using ranges::Container;
+using ranges::OrderedContainer;
 
 ///////////////////// with std::allocator and Regular types /////////////////////
 // sequence containers
-CONCEPT_ASSERT(Container<std::deque<bool>>());
-CONCEPT_ASSERT(!Container<std::forward_list<float>>()); // TODO: decide if forward_list is an exemption... if so, what defines an "exemption"?
-CONCEPT_ASSERT(Container<std::list<double>>());
-CONCEPT_ASSERT(Container<std::vector<int>>());
+CONCEPT_ASSERT(OrderedContainer<std::deque<bool>>());
+CONCEPT_ASSERT(!OrderedContainer<std::forward_list<float>>()); // TODO: decide if forward_list is an exemption... if so, what defines an "exemption"?
+CONCEPT_ASSERT(OrderedContainer<std::list<double>>());
+CONCEPT_ASSERT(OrderedContainer<std::vector<int>>());
+
+CONCEPT_ASSERT(ranges::SequenceContainer<std::vector<int>>());
 
 // associative containers
-CONCEPT_ASSERT(Container<std::map<int, std::string>>());
-CONCEPT_ASSERT(Container<std::set<std::vector<int>>>());
-CONCEPT_ASSERT(Container<std::unordered_map<std::string, int>>());
-CONCEPT_ASSERT(Container<std::unordered_set<std::string>>());
+CONCEPT_ASSERT(OrderedContainer<std::map<int, std::string>>());
+CONCEPT_ASSERT(OrderedContainer<std::set<std::vector<int>>>());
+CONCEPT_ASSERT(ranges::Container<std::unordered_map<std::string, int>>());
+CONCEPT_ASSERT(!OrderedContainer<std::unordered_map<std::string, int>>());
+CONCEPT_ASSERT(ranges::Container<std::unordered_set<std::string>>());
+CONCEPT_ASSERT(!OrderedContainer<std::unordered_set<std::string>>());
 
 // container adaptors
-CONCEPT_ASSERT(!Container<std::priority_queue<short>>());
-CONCEPT_ASSERT(!Container<std::queue<long long>>());
-CONCEPT_ASSERT(!Container<std::stack<long double>>());
+CONCEPT_ASSERT(!OrderedContainer<std::priority_queue<short>>());
+CONCEPT_ASSERT(!OrderedContainer<std::queue<long long>>());
+CONCEPT_ASSERT(!OrderedContainer<std::stack<long double>>());
 
 // Bjarne's "almost containers"
-CONCEPT_ASSERT(Container<std::array<int, 10>>()); // I think this one is okay to pass
+CONCEPT_ASSERT(OrderedContainer<std::array<int, 10>>()); // I think this one is okay to pass
 CONCEPT_ASSERT(!Container<int[]>());
 CONCEPT_ASSERT(!Container<std::bitset<8>>());
 CONCEPT_ASSERT(!Container<std::vector<bool>>()); // I prefer Scott's classification to Bjarne's ;)
@@ -62,12 +67,14 @@ CONCEPT_ASSERT(!Container<std::tuple<>>());
 CONCEPT_ASSERT(!Container<std::tuple<int>>());
 CONCEPT_ASSERT(!Container<std::tuple<int, double>>());
 CONCEPT_ASSERT(!Container<std::tuple<int, double, std::vector<int>>>());
-CONCEPT_ASSERT(Container<std::string>()); // I think this is one is okay to pass
+CONCEPT_ASSERT(OrderedContainer<std::string>()); // I think this is one is okay to pass
 CONCEPT_ASSERT(!Container<std::valarray<int>>());
 
 ///////////////////// with std::allocator and non-Movable types /////////////////////
 
 ///////////////////// with custom allocator /////////////////////
+
+void foo(OrderedContainer);
 
 int main()
 {

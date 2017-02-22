@@ -16,6 +16,7 @@
 
 #include <stl2/detail/concepts/allocator.hpp>
 #include <stl2/detail/concepts/core.hpp>
+#include <stl2/detail/concepts/function.hpp>
 #include <stl2/memory.hpp>
 #include <stl2/type_traits.hpp>
 #include <stl2/utility.hpp>
@@ -40,22 +41,24 @@ STL2_OPEN_NAMESPACE {
 
    template <class X, class T, class A>
    concept bool __minimal_insertable = Same<value_type_t<X>, T>() &&
-                                       Same<__allocator_required_t<X>, rebind_alloc_t<A, T>>() &&
-                                       Allocator<A, T>();
+                                       Allocator<A, T>() &&
+                                       Same<A, rebind_alloc_t<A, T>>();
 
    template <class X, class T, class A>
    concept bool DefaultInsertable() {
       return __minimal_insertable<X, T, A> &&
+         DefaultConstructible<T>() &&
          requires(A m, T* p) {
-            allocator_traits<A>::construct(m, p);
+            {allocator_traits<A>::construct(m, p)};
       };
    }
 
    template <class X, class T, class A>
    concept bool MoveInsertable() {
       return __minimal_insertable<X, T, A> &&
+         Constructible<T, T&&>() &&
          requires(A m, T* p, T&& rv) {
-            allocator_traits<A>::construct(m, p, rv);
+            {allocator_traits<A>::construct(m, p, rv)};
       };
       // axiom: *p == previous_value(rv) && *p != rv && rv.~T()
    }
@@ -63,8 +66,9 @@ STL2_OPEN_NAMESPACE {
    template <class X, class T, class A>
    concept bool CopyInsertable() {
       return MoveInsertable<X, T, A>() &&
-         requires(A m, T* p, const T& v) {
-            allocator_traits<A>::construct(m, p, v);
+         Constructible<T, const T&>() &&
+         requires(A m, T* p, T v) {
+            {allocator_traits<A>::construct(m, p, v)};
       };
       // axiom: *p == v
    }
@@ -72,16 +76,18 @@ STL2_OPEN_NAMESPACE {
    template <class X, class T, class A, class... Args>
    concept bool EmplaceConstructible() {
       return __minimal_insertable<X, T, A> &&
+         Constructible<T, Args...>() &&
          requires(A m, T* p, Args&&... args) {
-            allocator_traits<A>::construct(m, p, __stl2::forward<Args>(args)...);
+            {allocator_traits<A>::construct(m, p, __stl2::forward<Args>(args)...)};
       };
    }
 
    template <class X, class T, class A>
    concept bool Erasable() {
       return __minimal_insertable<X, T, A> &&
+         Destructible<T>() &&
          requires(A m, T* p) {
-            allocator_traits<A>::destroy(m, p);
+            {allocator_traits<A>::destroy(m, p)};
       };
    }
 } STL2_CLOSE_NAMESPACE

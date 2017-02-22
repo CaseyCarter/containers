@@ -238,6 +238,9 @@ STL2_OPEN_NAMESPACE {
 
    template <typename T>
    using allocator_t = typename T::allocator_type;
+
+   template <class A, class T>
+   using rebind_alloc_t = typename allocator_traits<A>::template rebind_alloc<T>;
 } STL2_CLOSE_NAMESPACE
 
 #endif
