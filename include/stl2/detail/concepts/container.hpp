@@ -153,36 +153,5 @@ STL2_OPEN_NAMESPACE {
          requires {typename allocator_t<X>;} &&
          __AllocatorAwareContainerTraits<X, value_type_t<X>, allocator_t<X>>();
    }
-
-   template <class X, class T, class A, class... Args>
-   concept bool __SequenceAllocatable() {
-      return Constructible<X, size_type_t<X>, T>() && // axiom: count(a, t) == n;
-         Constructible<X, initializer_list<T>>();/* && // axiom: ranges::equal(a, il.begin());
-         requires(X a, initializer_list<T> il, size_type_t<X> n,
-                  const_iterator_t<X> p, const_iterator_t<X> q,
-                  T t, T&& rv, Args&&... args) {
-      };*/
-   }
-
-   template <class X, class T, class A, class I, class S, class... Args>
-   concept bool __SequenceAllocatable() {
-      return Assignable<value_type_t<X>&, value_type_t<I>>() &&
-         Constructible<X, I, S>() && // axiom: ranges::distance(i, j) == ranges::distance(a.begin(), a.end()) && ranges::equal(a, i);
-         EmplaceConstructible<X, T, A, value_type_t<I>>();
-   }
-
-   template <class X>
-   concept bool SequenceContainer() {
-      return Container<X>() &&
-         __SequenceAllocatable<X, value_type_t<X>, __allocator_required_t<X>>();
-   }
-
-   template <class X, class I, class S>
-   concept bool SequenceContainer() {
-      return SequenceContainer<X>() &&
-         Iterator<I>() &&
-         Sentinel<S, I>() &&
-         __SequenceAllocatable<X, value_type_t<X>, __allocator_required_t<X>, I>();
-   }
 } STL2_CLOSE_NAMESPACE
 #endif // STL2_DETAIL_CONCEPTS_CONTAINER_HPP

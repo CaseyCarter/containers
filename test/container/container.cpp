@@ -42,8 +42,6 @@ CONCEPT_ASSERT(!OrderedContainer<std::forward_list<float>>()); // TODO: decide i
 CONCEPT_ASSERT(OrderedContainer<std::list<double>>());
 CONCEPT_ASSERT(OrderedContainer<std::vector<int>>());
 
-CONCEPT_ASSERT(ranges::SequenceContainer<std::vector<int>>());
-
 // associative containers
 CONCEPT_ASSERT(OrderedContainer<std::map<int, std::string>>());
 CONCEPT_ASSERT(OrderedContainer<std::set<std::vector<int>>>());
@@ -73,8 +71,6 @@ CONCEPT_ASSERT(!Container<std::valarray<int>>());
 ///////////////////// with std::allocator and non-Movable types /////////////////////
 
 ///////////////////// with custom allocator /////////////////////
-
-void foo(OrderedContainer);
 
 int main()
 {

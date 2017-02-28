@@ -32,6 +32,6 @@ CONCEPT_ASSERT(!AllocatorAwareContainer<std::forward_list<int>>());
 CONCEPT_ASSERT(AllocatorAwareContainer<std::list<int>>());
 CONCEPT_ASSERT(AllocatorAwareContainer<std::map<int, int>>());
 CONCEPT_ASSERT(AllocatorAwareContainer<std::set<int>>());
-//CONCEPT_ASSERT(AllocatorAwareContainer<std::unordered_map<int, int>>());
+CONCEPT_ASSERT(AllocatorAwareContainer<std::unordered_map<int, int>>());
 CONCEPT_ASSERT(AllocatorAwareContainer<std::unordered_set<int>>());
 CONCEPT_ASSERT(AllocatorAwareContainer<std::vector<int>>());
