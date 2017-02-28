@@ -18,8 +18,9 @@
 #include <deque>
 #include <initializer_list>
 #include <stl2/detail/concepts/fundamental.hpp>
-#include <stl2/detail/concepts/object.hpp>
 #include <stl2/detail/concepts/insertable.hpp>
+#include <stl2/detail/concepts/meta.hpp>
+#include <stl2/detail/concepts/object.hpp>
 #include <stl2/detail/fwd.hpp>
 #include <stl2/iterator.hpp>
 #include <vector>
