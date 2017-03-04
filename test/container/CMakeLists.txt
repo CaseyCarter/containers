@@ -16,6 +16,8 @@ add_executable(container container.cpp
                          container3.cpp
                          reversible_container.cpp
                          allocator_aware.cpp
-                         sequence_container.cpp)
+                         contiguous_container.cpp
+                         sequence_container.cpp
+                         associative_container.cpp)
 target_compile_definitions(container PRIVATE -DVALIDATE_STL2)
 add_test(test.container container)
