@@ -33,50 +33,12 @@ STL2_OPEN_NAMESPACE {
    concept bool __is_vector_or_deque_and_also_assignable =
       meta::_Xor<__is_vector_or_deque<X, T, A> && Assignable<T&, T>(), Assignable<T&, T>()>;
 
-   namespace opt {
-// very icky... should I write a proposal for an "optional" requirement?
-// e.g.
-//
-// requires(X a) {
-//    optional {a.pop_back()} -> void;
-// }
-//
-// "optional" would be a context-sensitive keyword, so no clashing with std::optional :)
-// equivalent to the macro directly below, but with proper language support
-#define OPTIONAL_REQUIRES(EX, ARR, TEE) (requires EX { {ARR} -> TEE; } || not requires EX { {ARR}; })
-      template <class X, class... Args>
-      concept bool front =  OPTIONAL_REQUIRES((X a), a.front(), value_type_t<X>&)
-                         && OPTIONAL_REQUIRES((const X c), c.front(), const value_type_t<X>&)
-                       //  && OPTIONAL_REQUIRES((X a, Args&&... args), a.emplace_front(std::forward<Args>(args)...), value_type_t<X>&)
-                         && OPTIONAL_REQUIRES((X a, value_type_t<X> t), a.push_front(t), void)
-                         && OPTIONAL_REQUIRES((X a, value_type_t<X>&& rv), a.push_front(rv), void)
-                         && OPTIONAL_REQUIRES((X a), a.pop_front(), void)
-                         ;
-
-      template <class X, class... Args>
-      concept bool back =  OPTIONAL_REQUIRES((X a), a.back(), value_type_t<X>&)
-                        && OPTIONAL_REQUIRES((const X c), c.back(), const value_type_t<X>&)
-                   //     && OPTIONAL_REQUIRES((X a, Args&&... args), a.emplace_back(std::forward<Args>(args)...), value_type_t<X>&)
-                        && OPTIONAL_REQUIRES((X a, value_type_t<X> t), a.push_back(t), void)
-                        && OPTIONAL_REQUIRES((X a, value_type_t<X>&& rv), a.push_back(rv), void)
-                        && OPTIONAL_REQUIRES((X a), a.pop_back(), void)
-                        ;
-
-      template <class X>
-      concept bool subscript = OPTIONAL_REQUIRES((X a, size_type_t<X> n), a[n], value_type_t<X>&)
-                            && OPTIONAL_REQUIRES((const X a, size_type_t<X> n), a[n], const value_type_t<X>&)
-                            && OPTIONAL_REQUIRES((X a, size_type_t<X> n), a.at(n), value_type_t<X>&)
-                            && OPTIONAL_REQUIRES((const X a, size_type_t<X> n), a.at(n), const value_type_t<X>&)
-                            ;
-#undef OPTIONAL_REQUIRES
-   } // namespace opt
-
    template <class X, class T, class A, class... Args>
    concept bool __SequenceAllocatable() {
       return Constructible<X, size_type_t<X>, T>() && // axiom: count(a, t) == n;
          Constructible<X, initializer_list<T>>() && // axiom: ranges::equal(a, il.begin());
          Assignable<X&, initializer_list<T>>() &&
-         requires(X a, initializer_list<T> il, size_type_t<X> n,
+         requires(X a, const X c, initializer_list<T> il, size_type_t<X> n,
                   const_iterator_t<X> p, T t, T&& rv, Args&&... args) {
             {a.emplace(p, args...)} -> iterator_t<X>;
             {a.insert(p, t)} -> iterator_t<X>;
@@ -89,10 +51,21 @@ STL2_OPEN_NAMESPACE {
             {a.clear()} -> void;
             {a.assign(il)} -> void;
             {a.assign(n, t)} -> void;
-      } &&
-      opt::front<X> &&
-      opt::back<X> &&
-      opt::subscript<X>;
+            {a.front()} -> value_type_t<X>&;
+            {c.front()} -> const value_type_t<X>&;
+            {a.back()} -> value_type_t<X>&;
+            {c.back()} -> const value_type_t<X>&;
+
+            // alternatively, factorise these into concept BackInsertable
+            // however, all standard sequence containers support BackInsertable, and queues are
+            // not SequenceContainers, by default. vector is the simplest sequence container, and so
+            // it stands to reason that thus _all_ SequenceContainers should be BackInsertable.
+            //
+            //{a.emplace_back(std::forward<Args>(args)...)} -> value_type_t<X>&;
+            {a.push_back(t)} -> void;
+            {a.push_back(rv)} -> void;
+            {a.pop_back()} -> void;
+      };
    }
 
    template <class X, class T, class A, class I, class S, class... Args>
@@ -119,6 +92,18 @@ STL2_OPEN_NAMESPACE {
          InputIterator<I>() &&
          Sentinel<S, I>() &&
          __SequenceContainerExtraTraits<X, value_type_t<X>, __allocator_required_t<X>, I, S>();
+   }
+
+   template <class X, class... Args>
+   concept bool FrontInsertable() {
+      return requires(X a, const X c, value_type_t<X> t, value_type_t<X>&& rv, Args&&... args) {
+         {a.front()} -> value_type_t<X>&;
+         {c.front()} -> const value_type_t<X>&;
+         //{a.emplace_front(std::forward<Args>(args)...)} -> value_type_t<X>&;
+         {a.push_front(t)} -> void;
+         {a.push_front(rv)} -> void;
+         {a.pop_front()} -> void;
+      };
    }
 } STL2_CLOSE_NAMESPACE
 

@@ -27,27 +27,21 @@ namespace ranges = __stl2;
 using ranges::SequenceContainer;
 
 CONCEPT_ASSERT(!SequenceContainer<std::array<int, 10>>());
-CONCEPT_ASSERT(SequenceContainer<std::deque<int>>());
+CONCEPT_ASSERT(ranges::SequenceContainer<std::deque<int>>());
 CONCEPT_ASSERT(!SequenceContainer<std::forward_list<int>>());
 CONCEPT_ASSERT(SequenceContainer<std::list<int>>());
 CONCEPT_ASSERT(!SequenceContainer<std::map<int, int>>());
 CONCEPT_ASSERT(!SequenceContainer<std::set<int>>());
 CONCEPT_ASSERT(!SequenceContainer<std::unordered_map<int, int>>());
 CONCEPT_ASSERT(!SequenceContainer<std::unordered_set<int>>());
-CONCEPT_ASSERT(SequenceContainer<std::vector<int>>());
+CONCEPT_ASSERT(ranges::SequenceContainer<std::vector<int>>());
 
-class kik {
-   
-};
-
-class lol {
-public:
-   using value_type = int;
-   void front();
-   void back();
-};
-
-CONCEPT_ASSERT(ranges::opt::front<kik>);
-CONCEPT_ASSERT(!ranges::opt::front<lol>);
-CONCEPT_ASSERT(ranges::opt::back<kik>);
-CONCEPT_ASSERT(!ranges::opt::back<lol>);
+CONCEPT_ASSERT(!ranges::FrontInsertable<std::array<int, 10>>());
+CONCEPT_ASSERT(ranges::FrontInsertable<std::forward_list<int>>());
+CONCEPT_ASSERT(ranges::FrontInsertable<std::deque<int>>());
+CONCEPT_ASSERT(ranges::FrontInsertable<std::list<int>>());
+CONCEPT_ASSERT(!ranges::FrontInsertable<std::map<int, int>>());
+CONCEPT_ASSERT(!ranges::FrontInsertable<std::set<int>>());
+CONCEPT_ASSERT(!ranges::FrontInsertable<std::unordered_map<int, int>>());
+CONCEPT_ASSERT(!ranges::FrontInsertable<std::unordered_set<int>>());
+CONCEPT_ASSERT(!ranges::FrontInsertable<std::vector<int>>());

@@ -153,5 +153,30 @@ STL2_OPEN_NAMESPACE {
          requires {typename allocator_t<X>;} &&
          __AllocatorAwareContainerTraits<X, value_type_t<X>, allocator_t<X>>();
    }
+
+   // designed to cause a compile-time error when a real ContiguousIterator is created
+   // that way, the ContiguousContainer below is always correctly defined
+   template <class X>
+   concept bool ContiguousIterator() {
+      return RandomAccessIterator<X>();
+   }
+
+   template <class X>
+   concept bool ContiguousRange() {
+      return RandomAccessRange<X>() &&
+         ContiguousIterator<iterator_t<X>>();
+   }
+
+   template <class X>
+   concept bool ContiguousContainer() {
+      return Container<X>() &&
+         ContiguousRange<X>() &&
+         requires(X a, const X c, size_type_t<X> n) {
+            {a[n]} -> value_type_t<X>&;
+            {a[n]} -> const value_type_t<X>&;
+            {a.at(n)} -> value_type_t<X>&;
+            {a.at(n)} -> const value_type_t<X>&;
+      };
+   }
 } STL2_CLOSE_NAMESPACE
 #endif // STL2_DETAIL_CONCEPTS_CONTAINER_HPP
