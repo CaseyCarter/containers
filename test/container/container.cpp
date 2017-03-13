@@ -33,9 +33,10 @@
 
 namespace ranges = __stl2;
 using ranges::Container;
+using ranges::Erasable;
 using ranges::OrderedContainer;
 
-///////////////////// with std::allocator and Regular types /////////////////////
+///////////////////// with std::allocator and value types /////////////////////
 // sequence containers
 CONCEPT_ASSERT(OrderedContainer<std::deque<bool>>());
 CONCEPT_ASSERT(!OrderedContainer<std::forward_list<float>>()); // TODO: decide if forward_list is an exemption... if so, what defines an "exemption"?
@@ -45,9 +46,9 @@ CONCEPT_ASSERT(OrderedContainer<std::vector<int>>());
 // associative containers
 CONCEPT_ASSERT(OrderedContainer<std::map<int, std::string>>());
 CONCEPT_ASSERT(OrderedContainer<std::set<std::vector<int>>>());
-CONCEPT_ASSERT(ranges::Container<std::unordered_map<std::string, int>>());
+CONCEPT_ASSERT(Container<std::unordered_map<std::string, int>>());
 CONCEPT_ASSERT(!OrderedContainer<std::unordered_map<std::string, int>>());
-CONCEPT_ASSERT(ranges::Container<std::unordered_set<std::string>>());
+CONCEPT_ASSERT(Container<std::unordered_set<std::string>>());
 CONCEPT_ASSERT(!OrderedContainer<std::unordered_set<std::string>>());
 
 // container adaptors
@@ -68,7 +69,7 @@ CONCEPT_ASSERT(!Container<std::tuple<int, double, std::vector<int>>>());
 CONCEPT_ASSERT(OrderedContainer<std::string>()); // I think this is one is okay to pass
 CONCEPT_ASSERT(!Container<std::valarray<int>>());
 
-///////////////////// with std::allocator and non-Movable types /////////////////////
+///////////////////// TODO with std::allocator and references /////////////////////
 
 ///////////////////// with custom allocator /////////////////////
 

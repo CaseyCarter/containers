@@ -33,62 +33,67 @@ STL2_OPEN_NAMESPACE {
    template <class X>
    using node_type_t = typename X::node_type;
 
-   template <class X>
-   concept bool __is_set = Same<key_type_t<X>, value_type_t<X>>() &&
-      Same<key_compare_t<X>, value_compare_t<X>>();
+   namespace __associative {
+      template <class X>
+      concept bool Set() {
+         return Same<key_type_t<X>, value_type_t<X>>() &&
+            Same<key_compare_t<X>, value_compare_t<X>>() &&
+            Same<iterator_t<X>, const_iterator_t<X>>();
+      }
 
-   template <class X>
-   concept bool __is_map = requires { typename mapped_type_t<X>; } &&
-      Same<value_type_t<X>, pair<const key_type_t<X>, mapped_type_t<X>>>(); //TODO: replace with tagged_pair<tag::key(const key_type_t<X>), tag::value(mapped_type_t<X>)>>() &&
-      // TODO: potentially something about value_compare_t<X> here
+      template <class X>
+      concept bool Map() {
+         return requires { typename mapped_type_t<X>; } &&
+            Same<value_type_t<X>, pair<const key_type_t<X>, mapped_type_t<X>>>(); //TODO: replace with tagged_pair<tag::key(const key_type_t<X>), tag::value(mapped_type_t<X>)>>() &&
+            // TODO: potentially something about value_compare_t<X> here
+      }
+   } // namespace __associative
 
-   template <class X>
-   concept bool AssociativeContainerTraits() {
-      return requires {
-         typename key_type_t<X>;
-         typename key_compare_t<X>;
-         typename value_compare_t<X>;
-         //typename node_type_t<X>;
-      } &&
-      CopyConstructible<key_compare_t<X>>() &&
-      Relation<value_compare_t<X>, value_type_t<X>>();
+   template <class X, class... Args>
+   concept bool __KeyUnique() { // exposition only
+      return requires(X a, value_type_t<X> t) {
+         // {a.emplace(__stl2::forward<Args>(args)...)} -> optional<iterator_t<X>>;
+         // axiom: ???
+         // complexity: ???
+
+         {a.insert(t)} -> std::pair<iterator_t<X>, bool>; // todo: swap with optional<iterator_t<X>>
+         // axiom: ???
+         // complexity: ???
+
+         //{a.insert(nh)} -> insert_return_type;
+         // axiom: ???
+         // complexity: ???
+      };
    }
 
-   template <class X>
-   concept bool __Associatively_unique = meta::_Or<__is_set<X>, __is_map<X>> &&
-   requires(X a, value_type_t<X> t) {
-      // {a.emplace(__stl2::forward<Args>(args)...)} -> optional<iterator_t<X>>;
-      // axiom: ???
-      // complexity: ???
+   template <class X, class... Args>
+   concept bool __KeyEqual() { // exposition only
+      return requires(X a, value_type_t<X> t) {
+         // {a.emplace(__stl2::forward<Args>(args)...)} -> iterator_t<X>;
+         // axiom: ???
+         // complexity: ???
 
-      {a.insert(t)} -> std::pair<iterator_t<X>, bool>; // todo: swap with optional<iterator_t<X>>
-      // axiom: ???
-      // complexity: ???
+         {a.insert(t)} -> iterator_t<X>;
+         // axiom: ???
+         // complexity: ???
 
-      //{a.insert(nh)} -> insert_return_type;
-      // axiom: ???
-      // complexity: ???
-   };
+         //{a.insert(nh)} -> iterator_t<X>;
+         // axiom: ???
+         // complexity: ???
+      };
+   }
 
-   template <class X>
-   concept bool __Associatively_equal = meta::_Or<__is_set<X>, __is_map<X>> &&
-   requires(X a, value_type_t<X> t) {
-      // {a.emplace(__stl2::forward<Args>(args)...)} -> iterator_t<X>;
-      // axiom: ???
-      // complexity: ???
-
-      {a.insert(t)} -> iterator_t<X>;
-      // axiom: ???
-      // complexity: ???
-
-      //{a.insert(nh)} -> iterator_t<X>;
-      // axiom: ???
-      // complexity: ???
-   };
-
-   template <class X>
+   template <class X, class... Args>
    concept bool AssociativeContainer() {
-      return AssociativeContainerTraits<X>() &&
+      return requires {
+            typename key_type_t<X>;
+            typename key_compare_t<X>;
+            typename value_compare_t<X>;
+            //typename node_type_t<X>;
+         } &&
+         CopyConstructible<key_compare_t<X>>() &&
+         Relation<value_compare_t<X>, value_type_t<X>>() &&
+         (__associative::Set<X>() || __associative::Map<X>()) &&
          DefaultConstructible<key_compare_t<X>>() &&
          Container<X>() &&
          // TODO: requires node_handle
@@ -109,12 +114,6 @@ STL2_OPEN_NAMESPACE {
             //    return valid_range(a, i, j);
             // axiom:
             //    return valid_range(a, q1, q2);
-
-            {b.key_comp()} -> key_compare_t<X>;
-            // complexity: constant
-
-            {b.value_comp()} -> value_compare_t<X>;
-            // complexity: constant
 
             //{a.emplace_hint(p, __stl2::forward<Args>(args)...)} -> iterator_t<X>;
             // axiom: ???
@@ -161,11 +160,11 @@ STL2_OPEN_NAMESPACE {
             // complexity: ???
 
             {a.erase(q)} -> iterator_t<X>;
-            // axiom {__is_set}:
+            // axiom {__ordered::Is_set}:
             //    auto x = *q;
             //    q = a.erase(q);
             //    return q == a.end() || x.first <= q->first>
-            // axiom {__is_map}:
+            // axiom {__ordered::Is_map}:
             //    auto x = *q;
             //    q = a.erase(q);
             //    return q == a.end() || (x.first == q->first && x.second != q->second) || (x.first < q->first)>
@@ -174,11 +173,11 @@ STL2_OPEN_NAMESPACE {
             // complexity: ???
 
             {a.erase(r)} -> iterator_t<X>;
-            // axiom {__is_set}:
+            // axiom {__ordered::Is_set}:
             //    auto x = *r;
             //    r = a.erase(r);
             //    return r == a.end() || x.first <= r->first>
-            // axiom {__is_map}:
+            // axiom {__ordered::Is_map}:
             //    auto x = *r;
             //    r = a.erase(r);
             //    return r == a.end() || (x.first == r->first && x.second != r->second) || (x.first < r->first)>
@@ -194,7 +193,7 @@ STL2_OPEN_NAMESPACE {
             //    range [q1, q2) removed from container
             // complexity: ???
 
-            {a.clear()} -> void;
+            {a.clear()} noexcept -> void;
             // axiom:
             //    a.erase(a.begin(), a.end());
             // ensures:
@@ -235,7 +234,7 @@ STL2_OPEN_NAMESPACE {
             //    return a.equal_range(k) == __stl2::make_tagged_pair<tag::begin, tag::end>(a.lower_bound(k), a.upper_bound(k));
             // complexity: ???
          } &&
-         meta::_Xor<__Associatively_unique<X>, __Associatively_equal<X>>;
+         (__KeyUnique<X, Args...>() || __KeyEqual<X, Args...>());
    }
 
    template <class X>

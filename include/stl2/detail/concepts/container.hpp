@@ -87,7 +87,7 @@ STL2_OPEN_NAMESPACE {
    concept bool Container() {
       return EqualityComparable<value_type_t<X>>() &&
          CopyInsertable<X, value_type_t<X>, __allocator_required_t<X>>() &&
-        // Regular<X>() &&
+         Regular<X>() &&
          __ContainerAliases<X>() &&
          __ContainerIterators<X>() &&
          Erasable<X, value_type_t<X>, __allocator_required_t<X>>() &&
