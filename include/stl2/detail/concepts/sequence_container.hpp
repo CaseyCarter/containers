@@ -96,14 +96,15 @@ STL2_OPEN_NAMESPACE {
 
    template <class X, class... Args>
    concept bool FrontInsertable() {
-      return requires(X a, const X c, value_type_t<X> t, value_type_t<X>&& rv, Args&&... args) {
-         {a.front()} -> value_type_t<X>&;
-         {c.front()} -> const value_type_t<X>&;
-         //{a.emplace_front(std::forward<Args>(args)...)} -> value_type_t<X>&;
-         {a.push_front(t)} -> void;
-         {a.push_front(rv)} -> void;
-         {a.pop_front()} -> void;
-      };
+      return ForwardRange<X>() &&
+         requires(X a, const X c, value_type_t<X> t, value_type_t<X>&& rv, Args&&... args) {
+            {a.front()} -> value_type_t<X>&;
+            {c.front()} -> const value_type_t<X>&;
+            //{a.emplace_front(std::forward<Args>(args)...)} -> value_type_t<X>&;
+            {a.push_front(t)} -> void;
+            {a.push_front(rv)} -> void;
+            {a.pop_front()} -> void;
+         };
    }
 } STL2_CLOSE_NAMESPACE
 
